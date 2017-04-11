@@ -26,97 +26,33 @@ var UriTemplateError = (function () {
     return UriTemplateError;
 }());
 
+
+const str = 'string';
+const num = 'number';
+const bool = 'boolean';
+
+const isArray = function isArray (value) {
+    return Array.isArray(value);
+};
+
+const isString = function isString (value) {
+    return typeof value === str;
+};
+
+const isNumber = function isNumber (value) {
+    return typeof value === num;
+};
+
+const isBoolean = function isBoolean (value) {
+    return typeof value === bool;
+};
+
 var objectHelper = (function () {
-    function isArray (value) {
-        return Object.prototype.toString.apply(value) === '[object Array]';
-    }
-
-    function isString (value) {
-        return Object.prototype.toString.apply(value) === '[object String]';
-    }
-    
-    function isNumber (value) {
-        return Object.prototype.toString.apply(value) === '[object Number]';
-    }
-    
-    function isBoolean (value) {
-        return Object.prototype.toString.apply(value) === '[object Boolean]';
-    }
-    
-    function join (arr, separator) {
-        var
-            result = '',
-            first = true,
-            index;
-        for (index = 0; index < arr.length; index += 1) {
-            if (first) {
-                first = false;
-            }
-            else {
-                result += separator;
-            }
-            result += arr[index];
-        }
-        return result;
-    }
-
-    function map (arr, mapper) {
-        var
-            result = [],
-            index = 0;
-        for (; index < arr.length; index += 1) {
-            result.push(mapper(arr[index]));
-        }
-        return result;
-    }
-
-    function filter (arr, predicate) {
-        var
-            result = [],
-            index = 0;
-        for (; index < arr.length; index += 1) {
-            if (predicate(arr[index])) {
-                result.push(arr[index]);
-            }
-        }
-        return result;
-    }
-
-    function deepFreezeUsingObjectFreeze (object) {
-        if (typeof object !== "object" || object === null) {
-            return object;
-        }
-        Object.freeze(object);
-        var property, propertyName;
-        for (propertyName in object) {
-            if (object.hasOwnProperty(propertyName)) {
-                property = object[propertyName];
-                // be aware, arrays are 'object', too
-                if (typeof property === "object") {
-                    deepFreeze(property);
-                }
-            }
-        }
-        return object;
-    }
-
-    function deepFreeze (object) {
-        if (typeof Object.freeze === 'function') {
-            return deepFreezeUsingObjectFreeze(object);
-        }
-        return object;
-    }
-
-
     return {
         isArray: isArray,
         isString: isString,
         isNumber: isNumber,
-        isBoolean: isBoolean,
-        join: join,
-        map: map,
-        filter: filter,
-        deepFreeze: deepFreeze
+        isBoolean: isBoolean
     };
 }());
 
@@ -633,11 +569,11 @@ var VariableExpression = (function () {
         if (objectHelper.isString(value)) {
             return value === '';
         }
-        if (objectHelper.isNumber(value) || objectHelper.isBoolean(value)) {
-            return false;
-        }
         if (objectHelper.isArray(value)) {
             return value.length === 0;
+        }
+        if (objectHelper.isNumber(value) || objectHelper.isBoolean(value)) {
+            return false;
         }
         for (var propertyName in value) {
             if (value.hasOwnProperty(propertyName)) {
@@ -691,10 +627,16 @@ var VariableExpression = (function () {
         return isDefined(nameValue.value);
     }
 
+    function nameValueEncodedEqual(nameValue) {
+        return this.encode(nameValue.name) + '=' + this.encode(nameValue.value);
+    }
+
+    function nameValueEncodedComma(nameValue) {
+        return this.encode(nameValue.name) + ',' + this.encode(nameValue.value);
+    }
+
     function expandNotExploded(varspec, operator, value) {
-        var
-            arr = [],
-            result = '';
+        var result = '';
         if (operator.named) {
             result += encodingHelper.encodeLiteral(varspec.varname);
             if (isEmpty(value)) {
@@ -704,18 +646,10 @@ var VariableExpression = (function () {
             result += '=';
         }
         if (objectHelper.isArray(value)) {
-            arr = value;
-            arr = objectHelper.filter(arr, isDefined);
-            arr = objectHelper.map(arr, operator.encode);
-            result += objectHelper.join(arr, ',');
+            result += value.filter(isDefined).map(operator.encode).join(',');
         }
         else {
-            arr = propertyArray(value);
-            arr = objectHelper.filter(arr, valueDefined);
-            arr = objectHelper.map(arr, function (nameValue) {
-                return operator.encode(nameValue.name) + ',' + operator.encode(nameValue.value);
-            });
-            result += objectHelper.join(arr, ',');
+            result += propertyArray(value).filter(valueDefined).map(nameValueEncodedComma, operator).join(',');
         }
         return result;
     }
@@ -725,9 +659,7 @@ var VariableExpression = (function () {
             isArray = objectHelper.isArray(value),
             arr = [];
         if (isArray) {
-            arr = value;
-            arr = objectHelper.filter(arr, isDefined);
-            arr = objectHelper.map(arr, function (listElement) {
+            return value.filter(isDefined).map(function (listElement) {
                 var tmp = encodingHelper.encodeLiteral(varspec.varname);
                 if (isEmpty(listElement)) {
                     tmp += operator.ifEmpty;
@@ -736,12 +668,10 @@ var VariableExpression = (function () {
                     tmp += '=' + operator.encode(listElement);
                 }
                 return tmp;
-            });
+            }).join(operator.separator);
         }
         else {
-            arr = propertyArray(value);
-            arr = objectHelper.filter(arr, valueDefined);
-            arr = objectHelper.map(arr, function (nameValue) {
+            return propertyArray(value).filter(valueDefined).map(function (nameValue) {
                 var tmp = encodingHelper.encodeLiteral(nameValue.name);
                 if (isEmpty(nameValue.value)) {
                     tmp += operator.ifEmpty;
@@ -750,30 +680,19 @@ var VariableExpression = (function () {
                     tmp += '=' + operator.encode(nameValue.value);
                 }
                 return tmp;
-            });
+            }).join(operator.separator);
         }
-        return objectHelper.join(arr, operator.separator);
     }
 
     function expandExplodedUnnamed (operator, value) {
-        var
-            arr = [],
-            result = '';
+        var result = '';
         if (objectHelper.isArray(value)) {
-            arr = value;
-            arr = objectHelper.filter(arr, isDefined);
-            arr = objectHelper.map(arr, operator.encode);
-            result += objectHelper.join(arr, operator.separator);
+            result += value.filter(isDefined).map(operator.encode).join(operator.separator);
         }
         else {
-            arr = propertyArray(value);
-            arr = objectHelper.filter(arr, function (nameValue) {
+            result += propertyArray(value).filter(function (nameValue) {
                 return isDefined(nameValue.value);
-            });
-            arr = objectHelper.map(arr, function (nameValue) {
-                return operator.encode(nameValue.name) + '=' + operator.encode(nameValue.value);
-            });
-            result += objectHelper.join(arr, operator.separator);
+            }).map(nameValueEncodedEqual, operator).join(operator.separator);
         }
         return result;
     }
@@ -828,7 +747,7 @@ var VariableExpression = (function () {
             return "";
         }
         else {
-            return operator.first + objectHelper.join(expanded, operator.separator);
+            return operator.first + expanded.join(operator.separator);
         }
     };
 
@@ -838,23 +757,19 @@ var VariableExpression = (function () {
 var UriTemplate = (function () {
     function UriTemplate (templateText, expressions) {
         this.templateText = templateText;
-        this.expressions = expressions;
-        objectHelper.deepFreeze(this);
+        this.expressions = expressions || [];
     }
 
     UriTemplate.prototype.toString = function () {
         return this.templateText;
     };
 
+    var expandExpressionWithVariables = function (expression) {
+        return expression.expand(this);
+    };
+
     UriTemplate.prototype.expand = function (variables) {
-        // this.expressions.map(function (expression) {return expression.expand(variables);}).join('');
-        var
-            index,
-            result = '';
-        for (index = 0; index < this.expressions.length; index += 1) {
-            result += this.expressions[index].expand(variables);
-        }
-        return result;
+        return this.expressions.map(expandExpressionWithVariables, variables).join('');
     };
 
     UriTemplate.parse = parse;

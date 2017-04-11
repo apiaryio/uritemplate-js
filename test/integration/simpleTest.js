@@ -12,12 +12,6 @@ module.exports = (function () {
         'UriTemplate has a expand function': function (test) {
             test.equal(typeof UriTemplate.prototype.expand, 'function');
             test.done();
-        },
-        'UriTemplate instances are frozen': function (test) {
-            var ut = new UriTemplate('text', []);
-            test.ok(Object.isFrozen(ut));
-            test.ok(Object.isFrozen(ut.expressions));
-            test.done();
         }
     };
 }());
