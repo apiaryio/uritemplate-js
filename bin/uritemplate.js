@@ -27,23 +27,23 @@ var UriTemplateError = (function () {
 }());
 
 
-const str = 'string';
-const num = 'number';
-const bool = 'boolean';
+var str = 'string';
+var num = 'number';
+var bool = 'boolean';
 
-const isArray = function isArray (value) {
+var isArray = function isArray (value) {
     return Array.isArray(value);
 };
 
-const isString = function isString (value) {
+var isString = function isString (value) {
     return typeof value === str;
 };
 
-const isNumber = function isNumber (value) {
+var isNumber = function isNumber (value) {
     return typeof value === num;
 };
 
-const isBoolean = function isBoolean (value) {
+var isBoolean = function isBoolean (value) {
     return typeof value === bool;
 };
 
