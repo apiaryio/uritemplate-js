@@ -1,0 +1,7 @@
+machine:
+  node:
+    version: "6"
+checkout:
+  post:
+    - "git submodule sync"
+    - "git submodule update --init"
