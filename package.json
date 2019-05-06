@@ -1,6 +1,6 @@
 {
   "name": "@apiaryio/uritemplate",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "An UriTemplate implementation of rfc 6570",
   "homepage": "https://github.com/apiaryio/uritemplate-js#readme",
   "author": "Franz X Antesberger",
